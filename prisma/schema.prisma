@@ -1,0 +1,102 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "cockroachdb"
+  url       = env("DATABASE_URL")
+}
+
+/// A toilet displayed on the map
+model Toilet {
+  id         String   @id @default(cuid())
+  latitude   Float
+  longitude  Float
+  lastReview DateTime?
+  reviews    Review[]
+
+  @@map("toilets")
+}
+
+/// Review
+model Review {
+  id String @id @default(cuid())
+
+  /// Review author. Null if anonymous
+  author User?   @relation(fields: [userId], references: [id])
+  userId String?
+
+  /// Date created
+  date DateTime @default(now())
+
+  /// Review content (Text)
+  content String? @db.String(200)
+
+  /// Status of restroom
+  status Status
+
+  /// Bathroom used
+  bathroomUsed BathroomType
+
+  // -- Scores -- (the general score is the weighted average of the three)
+  // weight format is (user disabled; not disabled, privacy-concious; user not disabled nor privacy-concious)
+  // all scores are 0-10
+  /// How accessible is the restroom? (1.0; 0.0; 0.0)
+  accessibilityScore Int?
+
+  /// How clean is the restroom? (0.0; 0.5; 0.8)
+  cleanlinessScore Int?
+
+  /// How much privacy do you enjoy while in the restroom? (0.0; 0.5; 0.2)
+  privacyScore Int?
+
+  // attributes
+  /// Whether or not a purchase or payment is required
+  paymentRequired Boolean?
+
+  /// Is the restroom one-person/single stall
+  singleStall Boolean?
+
+  /// Does it have a baby changing station
+  hasBabyChangingStation Boolean?
+
+  Toilet   Toilet? @relation(fields: [toiletId], references: [id])
+  toiletId String?
+
+  responses Response[]
+
+  @@map("reviews")
+}
+
+model Response {
+  id     String @id @default(cuid())
+  user   User?  @relation(fields: [userId], references: [id])
+  userId String
+
+  positive Boolean
+
+  Review   Review? @relation(fields: [reviewId], references: [id])
+  reviewId String?
+
+  @@map("responses")
+}
+
+model User {
+  id        String     @id @default(cuid())
+  reviews   Review[]
+  responses Response[]
+
+  @@map("users")
+}
+
+enum Status {
+  OPEN
+  CLOSED
+}
+
+enum BathroomType {
+  MEN
+  WOMEN
+  FAMILY
+  OTHER
+}
