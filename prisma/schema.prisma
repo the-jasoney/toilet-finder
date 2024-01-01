@@ -3,22 +3,26 @@ generator client {
 }
 
 datasource db {
-  provider  = "cockroachdb"
-  url       = env("DATABASE_URL")
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
 /// A toilet displayed on the map
 model Toilet {
-  id         String   @id @default(cuid())
+  id         String    @id @default(cuid())
   latitude   Float
   longitude  Float
   lastReview DateTime?
   reviews    Review[]
 
+  accessibilityScore Float?
+  cleanlinessScore   Float?
+  privacyScore       Float?
+
   @@map("toilets")
 }
 
-/// Review
+/// Review (one review can be posted per user for any bathroom for a 1-month period)
 model Review {
   id String @id @default(cuid())
 
@@ -30,7 +34,7 @@ model Review {
   date DateTime @default(now())
 
   /// Review content (Text)
-  content String? @db.String(200)
+  content String?
 
   /// Status of restroom
   status Status
@@ -42,13 +46,13 @@ model Review {
   // weight format is (user disabled; not disabled, privacy-concious; user not disabled nor privacy-concious)
   // all scores are 0-10
   /// How accessible is the restroom? (1.0; 0.0; 0.0)
-  accessibilityScore Int?
+  accessibilityRating Int?
 
   /// How clean is the restroom? (0.0; 0.5; 0.8)
-  cleanlinessScore Int?
+  cleanlinessRating Int?
 
   /// How much privacy do you enjoy while in the restroom? (0.0; 0.5; 0.2)
-  privacyScore Int?
+  privacyRating Int?
 
   // attributes
   /// Whether or not a purchase or payment is required
@@ -68,12 +72,14 @@ model Review {
   @@map("reviews")
 }
 
+/// A positive or negative response to a review
 model Response {
   id     String @id @default(cuid())
-  user   User?  @relation(fields: [userId], references: [id])
+  user   User   @relation(fields: [userId], references: [id])
   userId String
 
-  positive Boolean
+  /// Whether or not the response was helpful
+  helpful Boolean
 
   Review   Review? @relation(fields: [reviewId], references: [id])
   reviewId String?
@@ -82,7 +88,18 @@ model Response {
 }
 
 model User {
-  id        String     @id @default(cuid())
+  id String @id @default(cuid())
+
+  /// Display Name
+  name String
+
+  /// Password (bcrypt-encrypted on client-side)
+  password String
+
+  /// Email
+  // TODO: Verification
+  email String @unique
+
   reviews   Review[]
   responses Response[]
 
